@@ -203,7 +203,8 @@ async def global_exception_handler(request, exc):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("AGENT_PORT", config.get("agent", {}).get("port", 8001)))
+    # Check PORT first (Railway/Heroku standard), then AGENT_PORT, then config
+    port = int(os.getenv("PORT") or os.getenv("AGENT_PORT") or config.get("agent", {}).get("port", 8001))
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

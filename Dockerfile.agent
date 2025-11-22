@@ -22,6 +22,7 @@ RUN mkdir -p /app/models /app/sample_data
 EXPOSE 8001
 
 # Start agent
-CMD ["uvicorn", "agents.smart_campus_energy_agent.main:app", "--host", "0.0.0.0", "--port", "8001"]
+# Use shell form to allow $PORT expansion for Railway/Heroku
+CMD uvicorn agents.smart_campus_energy_agent.main:app --host 0.0.0.0 --port ${PORT:-8001}
 
 

@@ -23,5 +23,6 @@ RUN mkdir -p /app/models /app/sample_data /app/supervisor /app/agents
 EXPOSE 8000 8001
 
 # Default command (can be overridden in docker-compose)
-CMD ["python", "-m", "uvicorn", "supervisor.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use shell form to allow $PORT expansion for Railway/Heroku
+CMD python -m uvicorn supervisor.main:app --host 0.0.0.0 --port ${PORT:-8000}
 

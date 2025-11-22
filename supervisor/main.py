@@ -237,7 +237,8 @@ async def global_exception_handler(request, exc):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("SUPERVISOR_PORT", config.get("supervisor", {}).get("port", 8000)))
+    # Check PORT first (Railway/Heroku standard), then SUPERVISOR_PORT, then config
+    port = int(os.getenv("PORT") or os.getenv("SUPERVISOR_PORT") or config.get("supervisor", {}).get("port", 8000))
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

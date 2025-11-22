@@ -22,6 +22,7 @@ RUN mkdir -p /app/supervisor/templates /app/models /app/sample_data
 EXPOSE 8000
 
 # Start supervisor
-CMD ["uvicorn", "supervisor.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use shell form to allow $PORT expansion for Railway/Heroku
+CMD uvicorn supervisor.main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 
