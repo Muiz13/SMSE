@@ -1,0 +1,37 @@
+# Render deployment configuration
+# Deploy both services using: render.yaml
+
+services:
+  - type: web
+    name: scems-supervisor
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn supervisor.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SUPERVISOR_PORT
+        value: 10000
+      - key: REGISTRY_PATH
+        value: /app/supervisor/registry.json
+      - key: LTM_TYPE
+        value: file
+
+  - type: web
+    name: scems-agent
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn agents.smart_campus_energy_agent.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PORT
+        value: 10001
+      - key: AGENT_PORT
+        value: 10001
+      - key: SUPERVISOR_URL
+        sync: false  # Will be set after supervisor deploys
+      - key: LTM_TYPE
+        value: file
+      - key: LTM_PATH
+        value: /app/ltm.json
+
+

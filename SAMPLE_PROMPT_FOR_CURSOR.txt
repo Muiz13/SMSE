@@ -1,0 +1,45 @@
+Analyze energy consumption for Building A today and provide recommendations for reducing energy costs. Also forecast the peak load for the next 24 hours.
+
+Expected behavior:
+1. The Supervisor should detect multiple intents:
+   - "building_energy_analysis" (from "Analyze energy consumption")
+   - "energy_saving_recommendations" (from "recommendations for reducing")
+   - "peak_load_forecasting" (from "forecast the peak load")
+
+2. The Supervisor should route to SmartCampusEnergyAgent since it has all these capabilities.
+
+3. The agent should execute the building_energy_analysis task first, then use that data to generate recommendations, and finally provide a forecast.
+
+4. The response should include:
+   - Total consumption for Building A today
+   - Peak consumption hour
+   - Energy saving recommendations with estimated savings
+   - 24-hour peak load forecast with predicted consumption values
+
+Sample expected output structure:
+{
+  "agent": "SmartCampusEnergyAgent",
+  "capability": "building_energy_analysis",  // Primary capability detected
+  "response": {
+    "status": "SUCCESS",
+    "results": {
+      "data": {
+        "building_id": "Building-A",
+        "date": "2025-11-22",
+        "total_consumption_kwh": 1250.5,
+        "peak_hour": 14,
+        "average_consumption_kwh": 52.1
+      },
+      "explainability": [
+        "Analyzed 24-hour consumption data for Building-A on 2025-11-22",
+        "Total consumption: 1250.5 kWh",
+        "Peak consumption occurred at 14:00",
+        "Trend analysis indicates stable consumption pattern"
+      ],
+      "ltm_hit": false
+    }
+  }
+}
+
+Note: In a full implementation, the Supervisor might handle multi-intent queries by making multiple sequential calls to the agent or by implementing a composite task capability.
+

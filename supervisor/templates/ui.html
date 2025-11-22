@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisor Agent - Multi-Agent System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .agent-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .agent-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .capabilities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .capability-tag {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+        .query-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 1em;
+            font-family: inherit;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            border-radius: 6px;
+            display: none;
+        }
+        .response.show {
+            display: block;
+        }
+        .response pre {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        .error {
+            background: #ffe7e7;
+            border-left-color: #dc3545;
+        }
+        .capability-icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        .result-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .result-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .result-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin: 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-failure {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .data-section {
+            margin: 15px 0;
+        }
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .data-label {
+            font-weight: 500;
+            color: #666;
+        }
+        .data-value {
+            color: #333;
+            font-weight: 600;
+        }
+        .explainability-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        .explainability-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .explainability-list li {
+            margin: 8px 0;
+            color: #555;
+        }
+        .json-toggle {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        .json-toggle:hover {
+            background: #5568d3;
+        }
+        .json-display {
+            display: none;
+            margin-top: 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .json-display.show {
+            display: block;
+        }
+        .json-display pre {
+            margin: 0;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+        .summary-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .summary-box h3 {
+            margin: 0 0 15px 0;
+            color: white;
+        }
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .summary-stat {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .summary-stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            display: block;
+        }
+        .summary-stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Supervisor Agent</h1>
+        <p class="subtitle">Multi-Agent System Management Interface</p>
+        
+        <div class="section">
+            <h2>Registered Agents ({{ total_agents }})</h2>
+            {% if agents %}
+                {% for agent in agents %}
+                <div class="agent-card">
+                    <div class="agent-name"><i class="fas fa-robot capability-icon"></i>{{ agent.name }}</div>
+                    <div><i class="fas fa-link"></i> <strong>URL:</strong> {{ agent.base_url }}</div>
+                    <div><i class="fas fa-clock"></i> <strong>Last Seen:</strong> {{ agent.last_seen or "Never" }}</div>
+                    <div class="capabilities">
+                        {% for capability in agent.capabilities %}
+                        <span class="capability-tag">
+                            {% if capability == "building_energy_analysis" %}
+                                <i class="fas fa-building"></i>
+                            {% elif capability == "appliance_energy_breakdown" %}
+                                <i class="fas fa-plug"></i>
+                            {% elif capability == "peak_load_forecasting" %}
+                                <i class="fas fa-chart-line"></i>
+                            {% elif capability == "energy_saving_recommendations" %}
+                                <i class="fas fa-lightbulb"></i>
+                            {% elif capability == "solar_energy_estimation" %}
+                                <i class="fas fa-sun"></i>
+                            {% elif capability == "cost_estimation" %}
+                                <i class="fas fa-dollar-sign"></i>
+                            {% endif %}
+                            {{ capability }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>No agents registered yet.</p>
+            {% endif %}
+        </div>
+        
+        <div class="section">
+            <h2>Query Agent</h2>
+            <form class="query-form" id="queryForm">
+                <div class="form-group">
+                    <label for="user_id">User ID:</label>
+                    <input type="text" id="user_id" name="user_id" value="web_user" required>
+                </div>
+                <div class="form-group">
+                    <label for="prompt">Query:</label>
+                    <textarea id="prompt" name="prompt" placeholder="e.g., Analyze energy consumption for Building A today" required></textarea>
+                </div>
+                <button type="submit">Send Query</button>
+            </form>
+            <div id="response" class="response"></div>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('queryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const responseDiv = document.getElementById('response');
+            responseDiv.className = 'response';
+            responseDiv.innerHTML = '<p>Processing...</p>';
+            responseDiv.classList.add('show');
+            
+            try {
+                const response = await fetch('/ui/query', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                // Clone the response to read it multiple times if needed
+                const responseClone = response.clone();
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (jsonError) {
+                    // If JSON parsing fails, try to read as text from the clone
+                    try {
+                        const text = await responseClone.text();
+                        responseDiv.className = 'response error show';
+                        responseDiv.innerHTML = `<h3>Error</h3><p>Failed to parse response as JSON</p><pre>${text}</pre>`;
+                        return;
+                    } catch (textError) {
+                        responseDiv.className = 'response error show';
+                        responseDiv.innerHTML = `<h3>Error</h3><p>Failed to read response: ${textError.message}</p><p>Status: ${response.status} ${response.statusText}</p>`;
+                        return;
+                    }
+                }
+                
+                if (response.ok && !data.error) {
+                    responseDiv.className = 'response show';
+                    
+                    // Handle multiple capabilities
+                    if (data.capabilities && data.responses) {
+                        let html = `<div class="summary-box">`;
+                        html += `<h3><i class="fas fa-tasks"></i> Response from ${data.agent}</h3>`;
+                        html += `<div class="summary-stats">`;
+                        html += `<div class="summary-stat">`;
+                        html += `<span class="summary-stat-value">${data.summary.total_requested}</span>`;
+                        html += `<span class="summary-stat-label">Total Requested</span>`;
+                        html += `</div>`;
+                        html += `<div class="summary-stat">`;
+                        html += `<span class="summary-stat-value" style="color: #d4edda;">${data.summary.successful}</span>`;
+                        html += `<span class="summary-stat-label">Successful</span>`;
+                        html += `</div>`;
+                        html += `<div class="summary-stat">`;
+                        html += `<span class="summary-stat-value" style="color: #f8d7da;">${data.summary.failed}</span>`;
+                        html += `<span class="summary-stat-label">Failed</span>`;
+                        html += `</div>`;
+                        html += `</div></div>`;
+                        
+                        // Capability icons mapping
+                        const capabilityIcons = {
+                            'building_energy_analysis': 'fa-building',
+                            'appliance_energy_breakdown': 'fa-plug',
+                            'peak_load_forecasting': 'fa-chart-line',
+                            'energy_saving_recommendations': 'fa-lightbulb',
+                            'solar_energy_estimation': 'fa-sun',
+                            'cost_estimation': 'fa-dollar-sign'
+                        };
+                        
+                        data.responses.forEach((resp, index) => {
+                            const icon = capabilityIcons[resp.capability] || 'fa-cog';
+                            const capabilityName = resp.capability.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            
+                            html += `<div class="result-card">`;
+                            html += `<div class="result-header">`;
+                            html += `<i class="fas ${icon} capability-icon" style="color: ${resp.status === 'SUCCESS' ? '#667eea' : '#dc3545'};"></i>`;
+                            html += `<h4 class="result-title">${capabilityName}</h4>`;
+                            html += `<span class="status-badge status-${resp.status.toLowerCase()}">`;
+                            html += `<i class="fas ${resp.status === 'SUCCESS' ? 'fa-check-circle' : 'fa-times-circle'}"></i> ${resp.status}`;
+                            html += `</span>`;
+                            html += `</div>`;
+                            
+                            if (resp.status === 'SUCCESS' && resp.data && Object.keys(resp.data).length > 0) {
+                                html += `<div class="data-section">`;
+                                Object.entries(resp.data).forEach(([key, value]) => {
+                                    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                                        html += `<div style="margin-bottom: 10px;"><strong style="color: #667eea;">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong></div>`;
+                                        Object.entries(value).forEach(([subKey, subValue]) => {
+                                            html += `<div class="data-item">`;
+                                            html += `<span class="data-label">${subKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>`;
+                                            html += `<span class="data-value">${typeof subValue === 'number' ? subValue.toLocaleString() : subValue}</span>`;
+                                            html += `</div>`;
+                                        });
+                                    } else if (Array.isArray(value)) {
+                                        html += `<div style="margin-bottom: 10px;"><strong style="color: #667eea;">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong></div>`;
+                                        value.forEach((item, idx) => {
+                                            html += `<div class="data-item">`;
+                                            html += `<span class="data-label">Item ${idx + 1}:</span>`;
+                                            html += `<span class="data-value">${JSON.stringify(item)}</span>`;
+                                            html += `</div>`;
+                                        });
+                                    } else {
+                                        html += `<div class="data-item">`;
+                                        html += `<span class="data-label">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>`;
+                                        html += `<span class="data-value">${typeof value === 'number' ? value.toLocaleString() : value}</span>`;
+                                        html += `</div>`;
+                                    }
+                                });
+                                html += `</div>`;
+                            }
+                            
+                            if (resp.explainability && resp.explainability.length > 0) {
+                                html += `<div class="explainability-list">`;
+                                html += `<strong><i class="fas fa-info-circle"></i> Explanation:</strong>`;
+                                html += `<ul>`;
+                                resp.explainability.forEach(exp => {
+                                    html += `<li><i class="fas fa-check" style="color: #28a745; margin-right: 5px;"></i>${exp}</li>`;
+                                });
+                                html += `</ul>`;
+                                html += `</div>`;
+                            }
+                            
+                            if (resp.error) {
+                                html += `<div style="background: #ffe7e7; padding: 10px; border-radius: 6px; margin-top: 10px;">`;
+                                html += `<strong style="color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> Error:</strong> ${resp.error}`;
+                                html += `</div>`;
+                            }
+                            
+                            // JSON toggle for each result
+                            html += `<button class="json-toggle" onclick="toggleJson('json-${index}')">`;
+                            html += `<i class="fas fa-code"></i> Show/Hide JSON`;
+                            html += `</button>`;
+                            html += `<div id="json-${index}" class="json-display">`;
+                            html += `<pre>${JSON.stringify(resp, null, 2)}</pre>`;
+                            html += `</div>`;
+                            
+                            html += `</div>`;
+                        });
+                        
+                        // Full response JSON
+                        html += `<div class="result-card">`;
+                        html += `<div class="result-header">`;
+                        html += `<i class="fas fa-file-code capability-icon"></i>`;
+                        html += `<h4 class="result-title">Full Response JSON</h4>`;
+                        html += `</div>`;
+                        html += `<button class="json-toggle" onclick="toggleJson('full-json')">`;
+                        html += `<i class="fas fa-code"></i> Show/Hide Full JSON`;
+                        html += `</button>`;
+                        html += `<div id="full-json" class="json-display">`;
+                        html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                        
+                        responseDiv.innerHTML = html;
+                    }
+                    // Handle single capability
+                    else if (data.agent && data.capability) {
+                        const capabilityIcons = {
+                            'building_energy_analysis': 'fa-building',
+                            'appliance_energy_breakdown': 'fa-plug',
+                            'peak_load_forecasting': 'fa-chart-line',
+                            'energy_saving_recommendations': 'fa-lightbulb',
+                            'solar_energy_estimation': 'fa-sun',
+                            'cost_estimation': 'fa-dollar-sign'
+                        };
+                        const icon = capabilityIcons[data.capability] || 'fa-cog';
+                        const capabilityName = data.capability.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        const responseData = data.response?.results || data.response || {};
+                        
+                        let html = `<div class="result-card">`;
+                        html += `<div class="result-header">`;
+                        html += `<i class="fas ${icon} capability-icon" style="color: #667eea;"></i>`;
+                        html += `<h3 class="result-title">Response from ${data.agent}</h3>`;
+                        html += `<span class="status-badge status-success">`;
+                        html += `<i class="fas fa-check-circle"></i> SUCCESS`;
+                        html += `</span>`;
+                        html += `</div>`;
+                        html += `<p style="color: #666; margin: 10px 0;"><strong>Capability:</strong> ${capabilityName}</p>`;
+                        
+                        if (responseData.data) {
+                            html += `<div class="data-section">`;
+                            Object.entries(responseData.data).forEach(([key, value]) => {
+                                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                                    html += `<div style="margin-bottom: 10px;"><strong style="color: #667eea;">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong></div>`;
+                                    Object.entries(value).forEach(([subKey, subValue]) => {
+                                        html += `<div class="data-item">`;
+                                        html += `<span class="data-label">${subKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>`;
+                                        html += `<span class="data-value">${typeof subValue === 'number' ? subValue.toLocaleString() : subValue}</span>`;
+                                        html += `</div>`;
+                                    });
+                                } else {
+                                    html += `<div class="data-item">`;
+                                    html += `<span class="data-label">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:</span>`;
+                                    html += `<span class="data-value">${typeof value === 'number' ? value.toLocaleString() : value}</span>`;
+                                    html += `</div>`;
+                                }
+                            });
+                            html += `</div>`;
+                        }
+                        
+                        if (responseData.explainability && responseData.explainability.length > 0) {
+                            html += `<div class="explainability-list">`;
+                            html += `<strong><i class="fas fa-info-circle"></i> Explanation:</strong>`;
+                            html += `<ul>`;
+                            responseData.explainability.forEach(exp => {
+                                html += `<li><i class="fas fa-check" style="color: #28a745; margin-right: 5px;"></i>${exp}</li>`;
+                            });
+                            html += `</ul>`;
+                            html += `</div>`;
+                        }
+                        
+                        html += `<button class="json-toggle" onclick="toggleJson('single-json')">`;
+                        html += `<i class="fas fa-code"></i> Show/Hide JSON`;
+                        html += `</button>`;
+                        html += `<div id="single-json" class="json-display">`;
+                        html += `<pre>${JSON.stringify(data.response || data, null, 2)}</pre>`;
+                        html += `</div>`;
+                        html += `</div>`;
+                        
+                        responseDiv.innerHTML = html;
+                    } else {
+                        responseDiv.innerHTML = `
+                            <div class="result-card">
+                                <h3>Response</h3>
+                                <button class="json-toggle" onclick="toggleJson('simple-json')">
+                                    <i class="fas fa-code"></i> Show/Hide JSON
+                                </button>
+                                <div id="simple-json" class="json-display">
+                                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    responseDiv.className = 'response error show';
+                    const errorMsg = data.error || 'Unknown error';
+                    const suggestions = data.suggestions ? `<p><strong>Suggestions:</strong><ul>${data.suggestions.map(s => `<li>${s}</li>`).join('')}</ul></p>` : '';
+                    responseDiv.innerHTML = `<h3>Error</h3><p>${errorMsg}</p>${suggestions}<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                responseDiv.className = 'response error show';
+                responseDiv.innerHTML = `<h3>Error</h3><p>${error.message}</p><p>Please check the console for more details.</p>`;
+                console.error('Query error:', error);
+            }
+        });
+        
+        function toggleJson(id) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.classList.toggle('show');
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  supervisor:
+    build: .
+    container_name: scems-supervisor
+    ports:
+      - "8000:8000"
+    environment:
+      - SUPERVISOR_HOST=0.0.0.0
+      - SUPERVISOR_PORT=8000
+      - REGISTRY_PATH=/app/supervisor/registry.json
+    volumes:
+      - ./supervisor:/app/supervisor
+      - ./shared:/app/shared
+    command: python -m uvicorn supervisor.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  agent:
+    build: .
+    container_name: scems-agent
+    ports:
+      - "8001:8001"
+    environment:
+      - AGENT_HOST=0.0.0.0
+      - AGENT_PORT=8001
+      - SUPERVISOR_URL=http://supervisor:8000
+      - LTM_TYPE=sqlite
+      - LTM_PATH=/app/ltm.db
+    volumes:
+      - ./agents:/app/agents
+      - ./shared:/app/shared
+      - ./models:/app/models
+      - ./sample_data:/app/sample_data
+      - ./ltm_data:/app/ltm_data
+    command: python -m uvicorn agents.smart_campus_energy_agent.main:app --host 0.0.0.0 --port 8001
+    depends_on:
+      - supervisor
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Optional: Redis for advanced caching (commented out by default)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: scems-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+
+# volumes:
+#   redis_data:
+

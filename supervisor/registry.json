@@ -1,0 +1,18 @@
+{
+  "agents": [
+    {
+      "name": "SmartCampusEnergyAgent",
+      "base_url": "http://localhost:8001",
+      "health_url": "http://localhost:8001/health",
+      "capabilities": [
+        "building_energy_analysis",
+        "appliance_energy_breakdown",
+        "peak_load_forecasting",
+        "energy_saving_recommendations",
+        "solar_energy_estimation",
+        "cost_estimation"
+      ],
+      "last_seen": "2025-11-22T17:17:18.629453Z"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+# Dockerfile for Agent service
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/models /app/sample_data
+
+# Expose port
+EXPOSE 8001
+
+# Start agent
+CMD ["uvicorn", "agents.smart_campus_energy_agent.main:app", "--host", "0.0.0.0", "--port", "8001"]
+
+
