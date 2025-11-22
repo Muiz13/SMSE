@@ -18,11 +18,15 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/models /app/sample_data
 
+# Make start script executable (for manual use)
+RUN chmod +x /app/start_agent.sh
+
 # Expose port
 EXPOSE 8001
 
-# Start agent
-# Use shell form to allow $PORT expansion for Railway/Heroku
-CMD uvicorn agents.smart_campus_energy_agent.main:app --host 0.0.0.0 --port ${PORT:-8001}
+# Start agent using Python module (reads PORT env var correctly)
+# This works even if Railway overrides CMD with --port $PORT
+# The Python code in main.py will read PORT from environment
+CMD ["python", "-m", "agents.smart_campus_energy_agent.main"]
 
 

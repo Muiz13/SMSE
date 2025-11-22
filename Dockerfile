@@ -19,10 +19,13 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/models /app/sample_data /app/supervisor /app/agents
 
+# Make start scripts executable (for manual use)
+RUN chmod +x /app/start_supervisor.sh /app/start_agent.sh
+
 # Expose ports (default: 8000 for supervisor, 8001 for agent)
 EXPOSE 8000 8001
 
 # Default command (can be overridden in docker-compose)
-# Use shell form to allow $PORT expansion for Railway/Heroku
-CMD python -m uvicorn supervisor.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Use Python module to properly handle PORT env var (reads from environment)
+CMD ["python", "-m", "supervisor.main"]
 

@@ -219,10 +219,10 @@ if __name__ == "__main__":
     # Check PORT first (Railway/Heroku standard), then AGENT_PORT, then config
     port = int(os.getenv("PORT") or os.getenv("AGENT_PORT") or config.get("agent", {}).get("port", 8001))
     uvicorn.run(
-        "main:app",
+        "agents.smart_campus_energy_agent.main:app",  # Use full module path for module execution
         host="0.0.0.0",
         port=port,
-        reload=True,
+        reload=False,  # Disable reload in production (Railway/Docker)
         log_level="info"
     )
 

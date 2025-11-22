@@ -18,12 +18,15 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/supervisor/templates /app/models /app/sample_data
 
+# Make start script executable (for manual use)
+RUN chmod +x /app/start_supervisor.sh
+
 # Expose port
 EXPOSE 8000
 
-# Start supervisor
-# Use shell form to allow $PORT expansion for Railway/Heroku
-# Using 'main:app' (root-level) for Railway compatibility
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start supervisor using Python module (reads PORT env var correctly)
+# This works even if Railway overrides CMD with --port $PORT
+# The Python code in main.py will read PORT from environment
+CMD ["python", "-m", "supervisor.main"]
 
 
