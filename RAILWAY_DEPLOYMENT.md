@@ -127,6 +127,75 @@ If Railway is still showing port errors, ensure:
 2. The correct Dockerfile is being used
 3. The entrypoint scripts are executable (they are in the Dockerfiles)
 
+### Issue: 502 Bad Gateway Error - "Agent returned error: 502"
+**Cause**: The supervisor cannot reach the agent service, or the agent service is down/crashed
+
+**Diagnosis Steps**:
+
+1. **Check Agent Service Status**:
+   - Go to Railway dashboard → Agent service → Logs
+   - Look for errors during startup
+   - Verify the service is running (not crashed)
+
+2. **Check Agent Health Endpoint**:
+   ```bash
+   curl https://your-agent.railway.app/health
+   ```
+   Should return: `{"status":"up","agent":"SmartCampusEnergyAgent"}`
+
+3. **Verify Agent Registration**:
+   ```bash
+   curl https://your-supervisor.railway.app/registry
+   ```
+   Check that the agent URL is correct (should be Railway domain, not localhost)
+
+4. **Check Agent Logs**:
+   - Look for startup errors
+   - Check if the agent is listening on the correct port
+   - Verify no import errors or missing dependencies
+
+**Common Causes and Solutions**:
+
+1. **Agent Service Crashed**:
+   - Check Railway logs for the agent service
+   - Look for Python errors, import errors, or missing files
+   - Ensure all dependencies are in `requirements.txt`
+   - Verify model files exist if required
+
+2. **Incorrect Agent URL in Registry**:
+   - The agent may have registered with `localhost` instead of Railway domain
+   - Solution: Re-register the agent with the correct Railway URL:
+     ```bash
+     curl -X POST https://your-supervisor.railway.app/register \
+       -H "Content-Type: application/json" \
+       -d '{
+         "name": "SmartCampusEnergyAgent",
+         "base_url": "https://your-agent.railway.app",
+         "health_url": "https://your-agent.railway.app/health",
+         "capabilities": ["building_energy_analysis", "appliance_energy_breakdown", "peak_load_forecasting", "energy_saving_recommendations", "solar_energy_estimation", "cost_estimation"]
+       }'
+     ```
+
+3. **Agent Not Auto-Registering**:
+   - Check that `SUPERVISOR_URL` environment variable is set correctly in the agent service
+   - Verify the supervisor URL is accessible from the agent
+   - Check agent logs for registration errors
+
+4. **Network Connectivity Issues**:
+   - If services are in different Railway projects, they may not be able to communicate
+   - Solution: Deploy both services in the same Railway project, or use public domains
+
+5. **Agent Service Not Listening on Port**:
+   - Verify the agent is using the entrypoint script (should handle PORT correctly)
+   - Check that the service is binding to `0.0.0.0`, not `127.0.0.1`
+   - Ensure the Dockerfile is using `Dockerfile.agent`
+
+**Quick Fix**:
+1. Check agent service logs in Railway dashboard
+2. Verify agent health endpoint is accessible
+3. Re-register agent with correct Railway URL if needed
+4. Restart both services if issues persist
+
 ## Railway-Specific Features
 
 The code automatically detects Railway deployment:

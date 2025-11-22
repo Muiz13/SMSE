@@ -294,14 +294,25 @@ class Supervisor:
                                 "explainability": result.get("results", {}).get("explainability", [])
                             })
                         else:
-                            results[capability] = {
+                            # Provide detailed error information
+                            error_info = {
                                 "error": f"Agent returned error: {response.status_code}",
-                                "details": response.text
+                                "status_code": response.status_code
                             }
+                            try:
+                                error_info["details"] = response.text[:500]
+                            except:
+                                pass
+                            
+                            if response.status_code == 502:
+                                error_info["suggestion"] = "Agent service may be down - check Railway logs"
+                            
+                            results[capability] = error_info
                             all_responses.append({
                                 "capability": capability,
                                 "status": "FAILURE",
-                                "error": f"HTTP {response.status_code}"
+                                "error": f"HTTP {response.status_code}",
+                                "details": error_info
                             })
                             
                 except httpx.TimeoutException:
@@ -374,10 +385,59 @@ class Supervisor:
                             "response": result
                         }
                     else:
-                        return {
+                        # Provide detailed error information
+                        error_details = {
                             "error": f"Agent returned error: {response.status_code}",
-                            "details": response.text
+                            "agent_url": agent_url,
+                            "agent_name": agent.name,
+                            "status_code": response.status_code
                         }
+                        
+                        # Add response text if available
+                        try:
+                            error_details["details"] = response.text[:500]  # Limit length
+                        except:
+                            pass
+                        
+                        # Add specific suggestions based on status code
+                        if response.status_code == 502:
+                            error_details["suggestions"] = [
+                                "The agent service may be down or not responding",
+                                "Check Railway logs for the agent service to see if it crashed",
+                                "Verify the agent service is deployed and running",
+                                f"Try accessing the agent health endpoint: {agent.health_url}",
+                                "If using Railway, ensure both services are in the same project or can communicate"
+                            ]
+                        elif response.status_code == 503:
+                            error_details["suggestions"] = [
+                                "The agent service is temporarily unavailable",
+                                "The service may be starting up or under maintenance",
+                                f"Check the agent health endpoint: {agent.health_url}"
+                            ]
+                        elif response.status_code == 404:
+                            error_details["suggestions"] = [
+                                f"The endpoint {agent_url}/task/sync may not exist",
+                                "Verify the agent service is running the correct version",
+                                "Check if the agent service has the /task/sync endpoint"
+                            ]
+                        else:
+                            error_details["suggestions"] = [
+                                f"Check the agent service logs for error details",
+                                f"Verify the agent is accessible at: {agent_url}",
+                                f"Test the health endpoint: {agent.health_url}"
+                            ]
+                        
+                        self.logger.error(
+                            f"Agent returned error {response.status_code}",
+                            extra={
+                                "agent_url": agent_url,
+                                "agent_name": agent.name,
+                                "status_code": response.status_code,
+                                "response_text": response.text[:200]
+                            }
+                        )
+                        
+                        return error_details
                         
             except httpx.TimeoutException:
                 return {
