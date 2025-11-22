@@ -18,15 +18,16 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/models /app/sample_data
 
-# Make start script executable (for manual use)
-RUN chmod +x /app/start_agent.sh
+# Make start scripts executable
+RUN chmod +x /app/start_agent.sh /app/entrypoint_agent.sh
 
 # Expose port
 EXPOSE 8001
 
-# Start agent using Python module (reads PORT env var correctly)
-# This works even if Railway overrides CMD with --port $PORT
-# The Python code in main.py will read PORT from environment
-CMD ["python", "-m", "agents.smart_campus_energy_agent.main"]
+# Set entrypoint to handle PORT expansion (works even if Railway overrides CMD)
+ENTRYPOINT ["/app/entrypoint_agent.sh"]
+
+# Default command (can be overridden by Railway)
+CMD ["uvicorn", "agents.smart_campus_energy_agent.main:app", "--host", "0.0.0.0", "--port", "$PORT"]
 
 

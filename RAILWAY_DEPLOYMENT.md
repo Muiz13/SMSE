@@ -14,8 +14,10 @@ The system consists of two services:
 
 1. Create a new Railway project
 2. Connect your GitHub repository
-3. Select the `scems-mas` directory as the root
-4. Railway will auto-detect the Dockerfile
+3. Select the repository root directory
+4. **Important**: Set the Dockerfile path to `Dockerfile.supervisor`
+   - In Railway service settings, go to "Settings" → "Dockerfile Path"
+   - Set it to `Dockerfile.supervisor`
 5. Set environment variables:
    - `PORT` - Railway will set this automatically
    - `REGISTRY_PATH` - `/app/supervisor/registry.json` (default)
@@ -27,12 +29,10 @@ The system consists of two services:
 
 1. In the same Railway project, create a **new service**
 2. Use the same repository
-3. Set the **Root Directory** to `scems-mas`
-4. Create/use `Dockerfile.agent` or set custom start command:
-   ```
-   python -m agents.smart_campus_energy_agent.main
-   ```
-5. Set environment variables:
+3. **Important**: Set the Dockerfile path to `Dockerfile.agent`
+   - In Railway service settings, go to "Settings" → "Dockerfile Path"
+   - Set it to `Dockerfile.agent`
+4. Set environment variables:
    - `PORT` - Railway will set this automatically
    - `SUPERVISOR_URL` - Your supervisor URL from Step 1 (e.g., `https://your-supervisor.railway.app`)
    - `AGENT_BASE_URL` - Your agent's Railway URL (will be set automatically via `RAILWAY_PUBLIC_DOMAIN`)
@@ -109,10 +109,23 @@ Replace `your-agent.railway.app` with your actual agent URL.
 2. Check agent logs for registration errors
 3. Manually register if needed
 
-### Issue: Port errors
-**Cause**: `$PORT` not being expanded
+### Issue: Port errors - "Invalid value for '--port': '$PORT' is not a valid integer"
+**Cause**: Railway passes `--port $PORT` as a literal string, and `$PORT` is not being expanded
 
-**Solution**: Already fixed in the code - uses `PORT` environment variable directly in Python
+**Solution**: The Dockerfiles now use entrypoint scripts that properly expand `$PORT`:
+- `Dockerfile.supervisor` uses `/app/entrypoint_supervisor.sh`
+- `Dockerfile.agent` uses `/app/entrypoint_agent.sh`
+
+These entrypoint scripts automatically replace `$PORT` with the actual port value from the environment variable, even when Railway overrides the CMD.
+
+**Important**: Make sure Railway is using the correct Dockerfile:
+- For Supervisor: Use `Dockerfile.supervisor` or set Root Directory and Dockerfile path
+- For Agent: Use `Dockerfile.agent` or set Root Directory and Dockerfile path
+
+If Railway is still showing port errors, ensure:
+1. The `PORT` environment variable is set (Railway sets this automatically)
+2. The correct Dockerfile is being used
+3. The entrypoint scripts are executable (they are in the Dockerfiles)
 
 ## Railway-Specific Features
 

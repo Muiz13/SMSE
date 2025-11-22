@@ -18,15 +18,16 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p /app/supervisor/templates /app/models /app/sample_data
 
-# Make start script executable (for manual use)
-RUN chmod +x /app/start_supervisor.sh
+# Make start scripts executable
+RUN chmod +x /app/start_supervisor.sh /app/entrypoint_supervisor.sh
 
 # Expose port
 EXPOSE 8000
 
-# Start supervisor using Python module (reads PORT env var correctly)
-# This works even if Railway overrides CMD with --port $PORT
-# The Python code in main.py will read PORT from environment
-CMD ["python", "-m", "supervisor.main"]
+# Set entrypoint to handle PORT expansion (works even if Railway overrides CMD)
+ENTRYPOINT ["/app/entrypoint_supervisor.sh"]
+
+# Default command (can be overridden by Railway)
+CMD ["uvicorn", "supervisor.main:app", "--host", "0.0.0.0", "--port", "$PORT"]
 
 
