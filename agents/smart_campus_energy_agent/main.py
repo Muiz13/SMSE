@@ -32,24 +32,44 @@ setup_logging(
 
 logger = logging.getLogger(__name__)
 
-# Initialize LTM
-ltm_type = config.get("ltm", {}).get("type", "sqlite")
-ltm_path = config.get("ltm", {}).get("path", "./ltm.db")
-ltm = LTM(backend_type=ltm_type, path=ltm_path)
+# Initialize LTM with error handling
+try:
+    ltm_type = config.get("ltm", {}).get("type", "sqlite")
+    ltm_path = config.get("ltm", {}).get("path", "./ltm.db")
+    ltm = LTM(backend_type=ltm_type, path=ltm_path)
+    logger.info(f"LTM initialized: type={ltm_type}, path={ltm_path}")
+except Exception as e:
+    logger.error(f"Failed to initialize LTM: {e}", exc_info=True)
+    # Fallback to file-based LTM
+    try:
+        ltm = LTM(backend_type="file", path="/tmp/ltm.json")
+        logger.warning("Using fallback file-based LTM")
+    except Exception as e2:
+        logger.error(f"Failed to initialize fallback LTM: {e2}", exc_info=True)
+        raise
 
-# Initialize agent
-supervisor_url = config.get("agent", {}).get("supervisor_url", "http://localhost:8000")
-agent_name = config.get("agent", {}).get("name", "SmartCampusEnergyAgent")
-model_path = config.get("ml", {}).get("model_path", "./models/forecast_model.pkl")
-data_dir = config.get("data", {}).get("sample_data_dir", "./sample_data")
-
-agent = SmartCampusEnergyAgent(
-    agent_name=agent_name,
-    supervisor_url=supervisor_url,
-    ltm=ltm,
-    model_path=model_path,
-    data_dir=data_dir
-)
+# Initialize agent with error handling
+try:
+    supervisor_url = config.get("agent", {}).get("supervisor_url", "http://localhost:8000")
+    agent_name = config.get("agent", {}).get("name", "SmartCampusEnergyAgent")
+    model_path = config.get("ml", {}).get("model_path", "./models/forecast_model.pkl")
+    data_dir = config.get("data", {}).get("sample_data_dir", "./sample_data")
+    
+    # Ensure data directory exists
+    from pathlib import Path
+    Path(data_dir).mkdir(parents=True, exist_ok=True)
+    
+    agent = SmartCampusEnergyAgent(
+        agent_name=agent_name,
+        supervisor_url=supervisor_url,
+        ltm=ltm,
+        model_path=model_path,
+        data_dir=data_dir
+    )
+    logger.info(f"Agent initialized: {agent_name}, supervisor_url={supervisor_url}")
+except Exception as e:
+    logger.error(f"Failed to initialize agent: {e}", exc_info=True)
+    raise
 
 
 @asynccontextmanager
@@ -58,10 +78,18 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {agent_name}")
     
-    # Auto-register with Supervisor (optional)
+    # Auto-register with Supervisor (optional, non-blocking)
     try:
         import httpx
-        async with httpx.AsyncClient() as client:
+        # Normalize supervisor URL
+        supervisor_url_normalized = supervisor_url
+        if not supervisor_url_normalized.startswith(("http://", "https://")):
+            if ".railway.app" in supervisor_url_normalized or ".up.railway.app" in supervisor_url_normalized:
+                supervisor_url_normalized = f"https://{supervisor_url_normalized}"
+            else:
+                supervisor_url_normalized = f"http://{supervisor_url_normalized}"
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
             # Determine agent base URL
             # Priority: AGENT_BASE_URL env var > Railway public domain > config > localhost
             agent_base_url = os.getenv("AGENT_BASE_URL")
@@ -81,17 +109,23 @@ async def lifespan(app: FastAPI):
                 "health_url": f"{agent_base_url}/health",
                 "capabilities": agent.get_capabilities()
             }
+            
+            logger.info(f"Attempting to register with supervisor at {supervisor_url_normalized}")
             response = await client.post(
-                f"{supervisor_url}/register",
+                f"{supervisor_url_normalized}/register",
                 json=registration_data,
-                timeout=5.0
+                timeout=10.0
             )
             if response.status_code == 200:
                 logger.info(f"Successfully auto-registered with Supervisor at {agent_base_url}")
             else:
-                logger.warning(f"Auto-registration failed: {response.status_code}")
+                logger.warning(f"Auto-registration failed: {response.status_code} - {response.text[:200]}")
+    except httpx.TimeoutException:
+        logger.warning(f"Auto-registration timed out (supervisor may not be ready yet)")
+    except httpx.ConnectError as e:
+        logger.warning(f"Auto-registration failed: Could not connect to supervisor at {supervisor_url} - {e}")
     except Exception as e:
-        logger.warning(f"Auto-registration skipped: {e}")
+        logger.warning(f"Auto-registration skipped: {e}", exc_info=True)
     
     yield
     
@@ -111,7 +145,14 @@ app = FastAPI(
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """Health check endpoint."""
-    return HealthResponse(status="up", agent=agent_name)
+    try:
+        # Verify agent is accessible
+        capabilities = agent.get_capabilities() if agent else []
+        return HealthResponse(status="up", agent=agent_name)
+    except Exception as e:
+        logger.error(f"Health check failed: {e}", exc_info=True)
+        # Return unhealthy status but don't crash
+        return HealthResponse(status="degraded", agent=agent_name)
 
 
 @app.get("/capabilities", response_model=CapabilitiesResponse)

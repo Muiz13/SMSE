@@ -24,10 +24,12 @@ RUN chmod +x /app/start_agent.sh /app/entrypoint_agent.sh
 # Expose port
 EXPOSE 8001
 
-# Set entrypoint to handle PORT expansion (works even if Railway overrides CMD)
+# Use Python module directly - it reads PORT from environment variable
+# This avoids PORT expansion issues entirely
+# If Railway overrides CMD, the entrypoint script will handle it
 ENTRYPOINT ["/app/entrypoint_agent.sh"]
 
-# Default command (can be overridden by Railway)
-CMD ["uvicorn", "agents.smart_campus_energy_agent.main:app", "--host", "0.0.0.0", "--port", "$PORT"]
+# Default: Use Python module which reads PORT from environment
+CMD ["python", "-m", "agents.smart_campus_energy_agent.main"]
 
 

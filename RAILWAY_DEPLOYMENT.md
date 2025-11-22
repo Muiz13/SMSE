@@ -18,7 +18,12 @@ The system consists of two services:
 4. **Important**: Set the Dockerfile path to `Dockerfile.supervisor`
    - In Railway service settings, go to "Settings" → "Dockerfile Path"
    - Set it to `Dockerfile.supervisor`
-5. Set environment variables:
+5. **CRITICAL**: Remove any "Start Command" override
+   - In Railway service settings, go to "Settings" → "Start Command"
+   - **Leave it empty** (or remove any existing command)
+   - The Dockerfile CMD will be used automatically
+   - If you must set a start command, use: `python -m supervisor.main`
+6. Set environment variables:
    - `PORT` - Railway will set this automatically
    - `REGISTRY_PATH` - `/app/supervisor/registry.json` (default)
 6. Deploy
@@ -32,7 +37,12 @@ The system consists of two services:
 3. **Important**: Set the Dockerfile path to `Dockerfile.agent`
    - In Railway service settings, go to "Settings" → "Dockerfile Path"
    - Set it to `Dockerfile.agent`
-4. Set environment variables:
+4. **CRITICAL**: Remove any "Start Command" override
+   - In Railway service settings, go to "Settings" → "Start Command"
+   - **Leave it empty** (or remove any existing command)
+   - The Dockerfile CMD will be used automatically
+   - If you must set a start command, use: `python -m agents.smart_campus_energy_agent.main`
+5. Set environment variables:
    - `PORT` - Railway will set this automatically
    - `SUPERVISOR_URL` - Your supervisor URL from Step 1 (e.g., `https://your-supervisor.railway.app`)
    - `AGENT_BASE_URL` - Your agent's Railway URL (will be set automatically via `RAILWAY_PUBLIC_DOMAIN`)
@@ -110,22 +120,30 @@ Replace `your-agent.railway.app` with your actual agent URL.
 3. Manually register if needed
 
 ### Issue: Port errors - "Invalid value for '--port': '$PORT' is not a valid integer"
-**Cause**: Railway passes `--port $PORT` as a literal string, and `$PORT` is not being expanded
+**Cause**: Railway is passing `--port $PORT` as a literal string, and `$PORT` is not being expanded
 
-**Solution**: The Dockerfiles now use entrypoint scripts that properly expand `$PORT`:
-- `Dockerfile.supervisor` uses `/app/entrypoint_supervisor.sh`
-- `Dockerfile.agent` uses `/app/entrypoint_agent.sh`
+**Solution**: 
+1. **Remove Start Command Override** (Most Important!)
+   - Go to Railway Dashboard → Your Service → Settings → Start Command
+   - **Delete any start command** (leave it empty)
+   - Railway will use the Dockerfile CMD which uses the Python module (reads PORT from env)
 
-These entrypoint scripts automatically replace `$PORT` with the actual port value from the environment variable, even when Railway overrides the CMD.
+2. **If you must use a start command**, use:
+   - Supervisor: `python -m supervisor.main`
+   - Agent: `python -m agents.smart_campus_energy_agent.main`
+   
+   **DO NOT use**: `uvicorn ... --port $PORT` (this won't work!)
 
-**Important**: Make sure Railway is using the correct Dockerfile:
-- For Supervisor: Use `Dockerfile.supervisor` or set Root Directory and Dockerfile path
-- For Agent: Use `Dockerfile.agent` or set Root Directory and Dockerfile path
+3. **Verify Dockerfile is correct**:
+   - Supervisor: `Dockerfile.supervisor`
+   - Agent: `Dockerfile.agent`
 
-If Railway is still showing port errors, ensure:
-1. The `PORT` environment variable is set (Railway sets this automatically)
-2. The correct Dockerfile is being used
-3. The entrypoint scripts are executable (they are in the Dockerfiles)
+4. **The entrypoint scripts handle PORT expansion**, but only if Railway doesn't override with a direct uvicorn command.
+
+**Quick Fix**:
+1. Remove any "Start Command" in Railway service settings
+2. Redeploy the service
+3. The Python module will read PORT from environment automatically
 
 ### Issue: 502 Bad Gateway Error - "Agent returned error: 502"
 **Cause**: The supervisor cannot reach the agent service, or the agent service is down/crashed
@@ -202,6 +220,49 @@ The code automatically detects Railway deployment:
 - Uses `RAILWAY_PUBLIC_DOMAIN` to construct agent URLs
 - Reads `PORT` environment variable (Railway standard)
 - Handles HTTPS URLs automatically
+
+## Quick Diagnostic Checklist for 502 Errors
+
+**📋 For detailed troubleshooting, see [RAILWAY_502_TROUBLESHOOTING.md](./RAILWAY_502_TROUBLESHOOTING.md)**
+
+If you're getting a 502 error, run through this checklist:
+
+1. **Check Agent Service is Running**:
+   ```bash
+   # In Railway dashboard, go to Agent service → Logs
+   # Look for "Uvicorn running on..." message
+   # Check for any error messages
+   ```
+
+2. **Test Agent Health Endpoint**:
+   ```bash
+   curl https://your-agent.railway.app/health
+   # Should return: {"status":"up","agent":"SmartCampusEnergyAgent"}
+   ```
+
+3. **Check Agent Registration**:
+   ```bash
+   curl https://your-supervisor.railway.app/registry
+   # Verify agent URL is Railway domain (not localhost)
+   ```
+
+4. **Check Supervisor Logs**:
+   ```bash
+   # In Railway dashboard, go to Supervisor service → Logs
+   # Look for connection errors or timeout messages
+   ```
+
+5. **Re-register Agent if Needed**:
+   ```bash
+   curl -X POST https://your-supervisor.railway.app/register \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "SmartCampusEnergyAgent",
+       "base_url": "https://your-agent.railway.app",
+       "health_url": "https://your-agent.railway.app/health",
+       "capabilities": ["building_energy_analysis", "appliance_energy_breakdown", "peak_load_forecasting", "energy_saving_recommendations", "solar_energy_estimation", "cost_estimation"]
+     }'
+   ```
 
 ## Quick Start Commands
 

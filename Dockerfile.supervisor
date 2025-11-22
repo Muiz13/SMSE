@@ -24,10 +24,11 @@ RUN chmod +x /app/start_supervisor.sh /app/entrypoint_supervisor.sh
 # Expose port
 EXPOSE 8000
 
-# Set entrypoint to handle PORT expansion (works even if Railway overrides CMD)
+# Use entrypoint script to handle PORT expansion
+# The script will replace $PORT with actual value from environment
 ENTRYPOINT ["/app/entrypoint_supervisor.sh"]
 
-# Default command (can be overridden by Railway)
-CMD ["uvicorn", "supervisor.main:app", "--host", "0.0.0.0", "--port", "$PORT"]
+# Default: Use Python module which reads PORT from environment
+CMD ["python", "-m", "supervisor.main"]
 
 

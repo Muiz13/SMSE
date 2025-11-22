@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 # Entrypoint script for Supervisor service (Railway compatible)
 # Handles PORT environment variable expansion even when Railway overrides CMD
 
@@ -8,23 +10,33 @@ PORT=${PORT:-8000}
 # Export PORT so it's available to child processes
 export PORT
 
-# If arguments are provided (Railway override), replace $PORT and execute
+# Log for debugging
+echo "Entrypoint: PORT=${PORT}" >&2
+
+# If arguments are provided (Railway override), process them
 if [ $# -gt 0 ]; then
-    # Process arguments and replace $PORT with actual value
+    # Railway might pass: uvicorn ... --port $PORT
+    # We need to replace $PORT with actual value in all arguments
     ARGS=()
     for arg in "$@"; do
-        if [ "$arg" = "\$PORT" ] || [ "$arg" = '$PORT' ]; then
-            ARGS+=("$PORT")
-        elif [[ "$arg" == *"\$PORT"* ]] || [[ "$arg" == *'$PORT'* ]]; then
-            # Replace $PORT in the argument string
-            ARGS+=("${arg//\$PORT/$PORT}")
-        else
-            ARGS+=("$arg")
-        fi
+        # Replace $PORT (literal string) with actual port value
+        case "$arg" in
+            '$PORT'|'${PORT}'|\$PORT)
+                ARGS+=("$PORT")
+                ;;
+            *)
+                # Replace $PORT anywhere in the argument
+                new_arg="${arg//\$PORT/$PORT}"
+                ARGS+=("$new_arg")
+                ;;
+        esac
     done
+    
+    echo "Executing with expanded PORT: ${ARGS[*]}" >&2
     exec "${ARGS[@]}"
 else
-    # No arguments, use default start script
-    exec uvicorn supervisor.main:app --host 0.0.0.0 --port $PORT
+    # No arguments, use Python module which reads PORT from environment
+    echo "No arguments, using Python module (reads PORT=${PORT} from env)" >&2
+    exec python -m supervisor.main
 fi
 
