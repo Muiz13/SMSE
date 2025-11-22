@@ -2,8 +2,8 @@
   "agents": [
     {
       "name": "SmartCampusEnergyAgent",
-      "base_url": "http://localhost:8001",
-      "health_url": "http://localhost:8001/health",
+      "base_url": "https://scems-agent-production.up.railway.app",
+      "health_url": "https://scems-agent-production.up.railway.app/health",
       "capabilities": [
         "building_energy_analysis",
         "appliance_energy_breakdown",

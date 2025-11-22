@@ -62,10 +62,23 @@ async def lifespan(app: FastAPI):
     try:
         import httpx
         async with httpx.AsyncClient() as client:
+            # Determine agent base URL
+            # Priority: AGENT_BASE_URL env var > Railway public domain > config > localhost
+            agent_base_url = os.getenv("AGENT_BASE_URL")
+            if not agent_base_url:
+                # Check for Railway public domain
+                railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN")
+                if railway_domain:
+                    # Railway provides public domain, use https
+                    agent_base_url = f"https://{railway_domain}"
+                else:
+                    # Fall back to config or localhost
+                    agent_base_url = config.get("agent", {}).get("base_url", "http://localhost:8001")
+            
             registration_data = {
                 "name": agent_name,
-                "base_url": config.get("agent", {}).get("base_url", "http://localhost:8001"),
-                "health_url": f"{config.get('agent', {}).get('base_url', 'http://localhost:8001')}/health",
+                "base_url": agent_base_url,
+                "health_url": f"{agent_base_url}/health",
                 "capabilities": agent.get_capabilities()
             }
             response = await client.post(
@@ -74,7 +87,7 @@ async def lifespan(app: FastAPI):
                 timeout=5.0
             )
             if response.status_code == 200:
-                logger.info("Successfully auto-registered with Supervisor")
+                logger.info(f"Successfully auto-registered with Supervisor at {agent_base_url}")
             else:
                 logger.warning(f"Auto-registration failed: {response.status_code}")
     except Exception as e:

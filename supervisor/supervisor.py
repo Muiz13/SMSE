@@ -17,6 +17,37 @@ from .schemas import AgentMetadata, RegisterRequest
 logger = logging.getLogger(__name__)
 
 
+def normalize_url(url: str) -> str:
+    """
+    Normalize URL to ensure it has a protocol prefix.
+    
+    Args:
+        url: URL string (may or may not have protocol)
+        
+    Returns:
+        URL with protocol prefix (https:// for Railway domains, http:// for localhost)
+    """
+    if not url:
+        return url
+    
+    url = url.strip()
+    
+    # If already has protocol, return as is
+    if url.startswith(("http://", "https://")):
+        return url
+    
+    # For Railway domains or production domains, use https
+    if ".railway.app" in url or ".up.railway.app" in url or ".herokuapp.com" in url or ".vercel.app" in url:
+        return f"https://{url}"
+    
+    # For localhost, use http
+    if "localhost" in url or "127.0.0.1" in url:
+        return f"http://{url}"
+    
+    # Default to https for unknown domains
+    return f"https://{url}"
+
+
 class Supervisor:
     """
     Supervisor agent that manages worker agents and routes tasks.
@@ -42,6 +73,9 @@ class Supervisor:
                 with open(self.registry_path, 'r') as f:
                     data = json.load(f)
                     for agent_data in data.get("agents", []):
+                        # Normalize URLs to ensure they have protocol
+                        agent_data["base_url"] = normalize_url(agent_data.get("base_url", ""))
+                        agent_data["health_url"] = normalize_url(agent_data.get("health_url", ""))
                         agent = AgentMetadata(**agent_data)
                         self.registry[agent.name] = agent
                 self.logger.info(f"Loaded {len(self.registry)} agents from registry")
@@ -81,10 +115,14 @@ class Supervisor:
             True if successful
         """
         try:
+            # Normalize URLs to ensure they have protocol
+            normalized_base_url = normalize_url(request.base_url)
+            normalized_health_url = normalize_url(request.health_url)
+            
             agent = AgentMetadata(
                 name=request.name,
-                base_url=request.base_url,
-                health_url=request.health_url,
+                base_url=normalized_base_url,
+                health_url=normalized_health_url,
                 capabilities=request.capabilities,
                 last_seen=iso_now()
             )
@@ -94,7 +132,7 @@ class Supervisor:
             
             self.logger.info(
                 f"Registered agent: {request.name}",
-                extra={"capabilities": request.capabilities}
+                extra={"capabilities": request.capabilities, "base_url": normalized_base_url}
             )
             
             return True
@@ -238,9 +276,11 @@ class Supervisor:
                 
                 # Send to agent
                 try:
+                    # Ensure URL is normalized
+                    agent_url = normalize_url(agent.base_url)
                     async with httpx.AsyncClient(timeout=30.0) as client:
                         response = await client.post(
-                            f"{agent.base_url}/task/sync",
+                            f"{agent_url}/task/sync",
                             json=task_assignment.dict()
                         )
                         
@@ -314,9 +354,11 @@ class Supervisor:
             
             # Send to agent
             try:
+                # Ensure URL is normalized
+                agent_url = normalize_url(agent.base_url)
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.post(
-                        f"{agent.base_url}/task/sync",
+                        f"{agent_url}/task/sync",
                         json=task_assignment.dict()
                     )
                     
@@ -338,10 +380,24 @@ class Supervisor:
                         }
                         
             except httpx.TimeoutException:
-                return {"error": "Agent request timed out"}
+                return {
+                    "error": "Agent request timed out",
+                    "agent_url": agent.base_url,
+                    "suggestion": "Check if the agent is running and accessible"
+                }
+            except httpx.ConnectError as e:
+                self.logger.error(f"Query routing failed: {e}", exc_info=True)
+                return {
+                    "error": f"Could not connect to agent at {agent.base_url}",
+                    "agent_url": agent.base_url,
+                    "suggestion": "Verify the agent URL is correct. If using Railway, ensure the agent is deployed and the URL uses the Railway domain (not localhost)"
+                }
             except Exception as e:
                 self.logger.error(f"Query routing failed: {e}", exc_info=True)
-                return {"error": str(e)}
+                return {
+                    "error": str(e),
+                    "agent_url": agent.base_url
+                }
     
     def _extract_parameters(self, prompt: str, capability: str) -> Dict[str, Any]:
         """
@@ -406,9 +462,11 @@ class Supervisor:
             Dictionary with health status
         """
         try:
+            # Ensure URL is normalized
+            health_url = normalize_url(agent.health_url)
             async with httpx.AsyncClient(timeout=5.0) as client:
                 start_time = datetime.now()
-                response = await client.get(agent.health_url)
+                response = await client.get(health_url)
                 response_time = (datetime.now() - start_time).total_seconds() * 1000
                 
                 if response.status_code == 200:
